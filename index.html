@@ -1,144 +1,161 @@
-<!-- Mapbox CSS -->
-<link href='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css' rel='stylesheet' />
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>لوحة طقس السويداء المتكاملة</title>
+  <!-- Mapbox CSS -->
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: sans-serif; margin:0; padding:0; background:#f0f2f5; }
+    .container { max-width: 900px; margin:20px auto; background:white; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.1); overflow:hidden; }
+    header { padding:20px; background:#4a90e2; color:white; }
+    header h1 { margin:0; font-size:1.5rem; }
+    .tabs { display:flex; background:#eee; }
+    .tabs button { flex:1; padding:10px; border:none; background:none; cursor:pointer; }
+    .tabs button.active { background:white; font-weight:bold; }
+    .tab-content { padding:20px; display:none; }
+    .tab-content.active { display:block; }
+    /* جزء Current */
+    .current { text-align:center; }
+    .current h2 { margin:10px 0; }
+    .current .details { display:flex; justify-content:center; gap:20px; margin-top:10px; }
+    .details div { text-align:center; }
+    /* خريطة */
+    #map { width:100%; height:300px; border-radius:6px; }
+    /* رسم بياني ساعٍ */
+    #hourlyChart { width:100%; height:200px; }
+    /* بطاقات يومية */
+    .daily { display:flex; gap:10px; overflow-x:auto; padding-bottom:10px; }
+    .card { background:#fafafa; padding:10px; border-radius:6px; text-align:center; min-width:100px; }
+  </style>
+</head>
+<body>
 
-<!-- حاوية الطقس -->
-<div id="weather" style="font-family: Arial, sans-serif; background: #f9f9f9; border-radius: 10px; padding: 20px; width: 300px; margin: 20px auto; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
-  <h3>الطقس في السويداء الآن</h3>
-  <p id="temp">...</p>
-  <p id="humidity">...</p>
-  <p id="wind">...</p>
-  <p id="desc">...</p>
+<div class="container">
+  <header>
+    <h1>طقس السويداء المتكامل</h1>
+    <p id="updatedAt" style="font-size:0.9rem; opacity:0.8;">...</p>
+  </header>
+
+  <!-- تبويبات -->
+  <div class="tabs">
+    <button class="active" data-tab="current">الحالي</button>
+    <button data-tab="hourly">ساعياً</button>
+    <button data-tab="daily">يومياً</button>
+    <button data-tab="map">خريطة</button>
+  </div>
+
+  <!-- المحتويات -->
+  <div id="current" class="tab-content active">
+    <div class="current">
+      <h2 id="tempNow">--°C</h2>
+      <p id="descNow">--</p>
+      <div class="details">
+        <div><strong id="humNow">--%</strong><br>رطوبة</div>
+        <div><strong id="windNow">--</strong><br>رياح (كم/س)</div>
+        <div><strong id="rainNow">--</strong><br>هطول مم</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="hourly" class="tab-content">
+    <canvas id="hourlyChart"></canvas>
+  </div>
+
+  <div id="daily" class="tab-content">
+    <div class="daily" id="dailyCards"></div>
+  </div>
+
+  <div id="map" class="tab-content">
+    <div id="mapboxContainer" style="position:relative;">
+      <!-- زر إعادة -->
+      <div id="style-switcher" style="position:absolute; top:10px; right:10px; z-index:2;">
+        <button onclick="changeStyle('streets')">شوارع</button>
+        <button onclick="changeStyle('satellite')">أقمار</button>
+        <button onclick="changeStyle('outdoors')">تضاريس</button>
+      </div>
+      <div id="map"></div>
+    </div>
+  </div>
 </div>
-
-<!-- أزرار تغيير نوع الخريطة -->
-<div id="style-switcher" style="position: absolute; top: 10px; right: 10px; background: white; border-radius: 5px; box-shadow: 0 2px 6px rgba(0,0,0,0.3); padding: 5px; z-index: 10;">
-  <button onclick="changeStyle('streets')">شوارع</button>
-  <button onclick="changeStyle('satellite')">أقمار صناعية</button>
-  <button onclick="changeStyle('outdoors')">تضاريس</button>
-</div>
-
-<!-- حاوية الخريطة -->
-<div id='map' style='width: 100%; height: 500px; border-radius: 10px; max-width: 800px; margin: 80px auto 40px; position: relative;'></div>
 
 <!-- Mapbox JS -->
-<script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
-
+<script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
 <script>
-  const mapboxToken = 'pk.eyJ1Ijoia2FuYXdhdHRvd24iLCJhIjoiY21kdTI2dGl0MDdibjJxc2RhM3NueXZxZCJ9.uO1pbEZoyzPPHp7LOFffBA';  
-  const tomorrowApiKey = 'qtcXEQ29y3U0wLYRWS5cAekT1Bwv4UT8';  
-  const lat = 32.7092;
-  const lon = 36.5663;
+  const tomorrowKey = 'qtcXEQ29y3U0wLYRWS5cAekT1Bwv4UT8';
+  const mapboxToken = 'pk.eyJ1Ijoia2FuYXdhdHRvd24iLCJhIjoiY21kdTI2dGl0MDdibjJxc2RhM3NueXZxZCJ9.uO1pbEZoyzPPHp7LOFffBA';
+  const lat = 32.7092, lon = 36.5663;
 
-  const weatherDescriptions = {
-    1000: "سماء صافية",
-    1100: "غائم جزئيًا",
-    1101: "غائم",
-    1102: "غائم جدًا",
-    2000: "ضباب",
-    4000: "مطر خفيف",
-    4200: "مطر متوسط",
-    4201: "مطر غزير",
-    5000: "ثلوج خفيفة",
-    6000: "أمطار ثلجية",
-    8000: "عاصفة"
-  };
+  // تبديل تبويبات
+  document.querySelectorAll('.tabs button').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.tabs button, .tab-content').forEach(el => el.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.tab).classList.add('active');
+    };
+  });
 
-  async function getWeatherAndMap() {
-    try {
-      const response = await fetch(`https://api.tomorrow.io/v4/weather/realtime?location=${lat},${lon}&apikey=${tomorrowApiKey}`);
-      const data = await response.json();
+  async function loadWeather() {
+    const url = `https://api.tomorrow.io/v4/timelines?location=${lat},${lon}`
+      + `&fields=temperature,humidity,windSpeed,precipitationIntensity,weatherCode`
+      + `&timesteps=current,next6h,next1d&units=metric&apikey=${tomorrowKey}`;
+    const res = await fetch(url);
+    const json = await res.json();
+    const now = json.data.timelines[0].intervals[0].values;
+    const hourly = json.data.timelines[1].intervals.slice(0,12);
+    const daily = json.data.timelines[2].intervals.slice(0,7);
 
-      if (!data.data || !data.data.values) throw new Error('بيانات الطقس غير متوفرة');
+    // Current
+    document.getElementById('tempNow').textContent = now.temperature.toFixed(1)+'°C';
+    document.getElementById('descNow').textContent = now.weatherCode;
+    document.getElementById('humNow').textContent = now.humidity+'%';
+    document.getElementById('windNow').textContent = now.windSpeed+' كم/س';
+    document.getElementById('rainNow').textContent = now.precipitationIntensity+' مم';
+    document.getElementById('updatedAt').textContent = 'آخر تحديث: '+new Date().toLocaleTimeString('ar-EG');
 
-      const values = data.data.values;
-      const temp = values.temperature;
-      const humidity = values.humidity;
-      const wind = values.windSpeed;
-      const code = values.weatherCode;
+    // Hourly Chart
+    const ctx = document.getElementById('hourlyChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: hourly.map(i=> new Date(i.startTime).getHours()+':00'),
+        datasets: [{ label:'°C', data: hourly.map(i=>i.values.temperature), fill:true }]
+      },
+      options:{ scales:{ y:{ beginAtZero:false } } }
+    });
 
-      // عرض بيانات الطقس
-      document.getElementById("temp").textContent = `درجة الحرارة: ${temp}°C`;
-      document.getElementById("humidity").textContent = `الرطوبة: ${humidity}%`;
-      document.getElementById("wind").textContent = `الرياح: ${wind} كم/س`;
-      document.getElementById("desc").textContent = `الحالة: ${weatherDescriptions[code] || "غير معروفة"}`;
+    // Daily Cards
+    const dailyDiv = document.getElementById('dailyCards');
+    daily.forEach(d => {
+      const date = new Date(d.startTime);
+      const card = document.createElement('div'); card.className='card';
+      card.innerHTML = `<strong>${date.toLocaleDateString('ar-EG',{weekday:'short',day:'numeric'})}</strong>
+        <p>${d.values.temperature.toFixed(1)}°C</p>
+        <p>هطول:${d.values.precipitationIntensity.toFixed(1)}مم</p>`;
+      dailyDiv.append(card);
+    });
 
-      // إعداد الخريطة
-      mapboxgl.accessToken = mapboxToken;
-      window.map = new mapboxgl.Map({
-        container: 'map',
-        style: 'mapbox://styles/mapbox/streets-v11',
-        center: [lon, lat],
-        zoom: 10
-      });
-
-      // أزرار التحكم الافتراضية (تكبير/تصغير)
-      map.addControl(new mapboxgl.NavigationControl());
-
-      // زر إعادة الموقع
-      class ResetControl {
-        onAdd(map) {
-          this.map = map;
-          this.btn = document.createElement('button');
-          this.btn.textContent = '🏠';
-          this.btn.title = 'إعادة الموقع';
-          this.btn.style.cssText = `
-            background: white; 
-            border: none; 
-            padding: 8px; 
-            margin: 10px;
-            cursor: pointer;
-            font-size: 18px;
-            border-radius: 4px;
-            box-shadow: 0 0 5px rgba(0,0,0,0.2);
-          `;
-          this.btn.onclick = () => {
-            map.flyTo({center: [lon, lat], zoom: 10});
-          };
-          const container = document.createElement('div');
-          container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
-          container.appendChild(this.btn);
-          return container;
-        }
-        onRemove() {
-          this.btn.parentNode.removeChild(this.btn);
-          this.map = undefined;
-        }
-      }
-      map.addControl(new ResetControl(), 'top-left');
-
-      // أضف Marker مع بيانات الطقس
-      const popup = new mapboxgl.Popup({ offset: 25 }).setText(
-        `الطقس: ${weatherDescriptions[code] || "غير معروف"}\nدرجة الحرارة: ${temp}°C\nالرطوبة: ${humidity}%\nالرياح: ${wind} كم/س`
-      );
-
-      new mapboxgl.Marker()
-        .setLngLat([lon, lat])
-        .setPopup(popup)
-        .addTo(map);
-
-      // السماح للمستخدم بإضافة علامات عند النقر
-      map.on('click', (e) => {
-        new mapboxgl.Marker()
-          .setLngLat(e.lngLat)
-          .setPopup(new mapboxgl.Popup().setText(`الإحداثيات:\n${e.lngLat.lat.toFixed(4)}, ${e.lngLat.lng.toFixed(4)}`))
-          .addTo(map);
-      });
-
-      // تغيير نمط الخريطة بناءً على اختيار المستخدم
-      window.changeStyle = function(style) {
-        const styleMap = {
-          streets: 'mapbox://styles/mapbox/streets-v11',
-          satellite: 'mapbox://styles/mapbox/satellite-v9',
-          outdoors: 'mapbox://styles/mapbox/outdoors-v12'
-        };
-        map.setStyle(styleMap[style]);
-      };
-
-    } catch (error) {
-      console.error('خطأ في جلب بيانات الطقس:', error);
-      document.getElementById("weather").innerHTML = "تعذر جلب بيانات الطقس.";
-    }
+    // خريطة Mapbox
+    mapboxgl.accessToken = mapboxToken;
+    window.map = new mapboxgl.Map({
+      container:'map', style:'mapbox://styles/mapbox/streets-v11',
+      center:[lon,lat], zoom:10
+    });
+    map.addControl(new mapboxgl.NavigationControl());
+    new mapboxgl.Marker()
+      .setLngLat([lon,lat])
+      .setPopup(new mapboxgl.Popup().setText(
+        `درجة الحرارة: ${now.temperature.toFixed(1)}°C\nرطوبة: ${now.humidity}%`
+      ))
+      .addTo(map);
   }
 
-  getWeatherAndMap();
+  window.changeStyle = s=>{
+    const m = window.map;
+    m.setStyle('mapbox://styles/mapbox/'+(s==='satellite'?'satellite-v9':s+'-v11'));
+  };
+
+  loadWeather();
 </script>
