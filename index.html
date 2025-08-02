@@ -1,9 +1,29 @@
-<div id="weather" style="font-family: Arial; text-align: center; padding: 20px;"></div>
+<div id="weather" style="font-family: Arial, sans-serif; background: #f9f9f9; border-radius: 10px; padding: 20px; width: 300px; margin: auto; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+  <h3>الطقس في السويداء الآن</h3>
+  <p id="temp">...</p>
+  <p id="humidity">...</p>
+  <p id="wind">...</p>
+  <p id="desc">...</p>
+</div>
 
 <script>
   const apiKey = "qtcXEQ29y3U0wLYRWS5cAekT1Bwv4UT8";
-  const lat = 32.7092;  // الرياض
+  const lat = 32.7092;
   const lon = 36.5663;
+
+  const weatherDescriptions = {
+    1000: "سماء صافية",
+    1100: "غائم جزئيًا",
+    1101: "غائم",
+    1102: "غائم جدًا",
+    2000: "ضباب",
+    4000: "مطر خفيف",
+    4200: "مطر متوسط",
+    4201: "مطر غزير",
+    5000: "ثلوج خفيفة",
+    6000: "أمطار ثلجية",
+    8000: "عاصفة"
+  };
 
   async function getWeather() {
     const url = `https://api.tomorrow.io/v4/weather/realtime?location=${lat},${lon}&apikey=${apiKey}`;
@@ -12,20 +32,16 @@
       const response = await fetch(url);
       const data = await response.json();
 
-      const temp = data.data.values.temperature;
-      const humidity = data.data.values.humidity;
-      const wind = data.data.values.windSpeed;
-      const condition = data.data.values.weatherCode;
+      const values = data.data.values;
+      const temp = values.temperature;
+      const humidity = values.humidity;
+      const wind = values.windSpeed;
+      const code = values.weatherCode;
 
-      const weatherHtml = `
-        <h3>الطقس في السويداء الآن</h3>
-        <p>درجة الحرارة: ${temp}°C</p>
-        <p>الرطوبة: ${humidity}%</p>
-        <p>الرياح: ${wind} كم/س</p>
-        <p>رمز الطقس: ${condition}</p>
-      `;
-
-      document.getElementById("weather").innerHTML = weatherHtml;
+      document.getElementById("temp").textContent = `درجة الحرارة: ${temp}°C`;
+      document.getElementById("humidity").textContent = `الرطوبة: ${humidity}%`;
+      document.getElementById("wind").textContent = `الرياح: ${wind} كم/س`;
+      document.getElementById("desc").textContent = `الحالة: ${weatherDescriptions[code] || "غير معروفة"}`;
     } catch (error) {
       document.getElementById("weather").innerHTML = "تعذر جلب بيانات الطقس.";
     }
