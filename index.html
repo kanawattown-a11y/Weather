@@ -1,37 +1,33 @@
-<div id="weather"></div>
+<div id="weather" style="font-family: Arial; text-align: center; padding: 20px;"></div>
 
 <script>
-  const apiKey = "0eca6de9a1fd093a0c3d06f0ede78a87";
-  const city = "As-Suwayda";
-  const units = "metric";
+  const apiKey = "qtcXEQ29y3U0wLYRWS5cAekT1Bwv4UT8";
+  const lat = 32.7092;  // الرياض
+  const lon = 36.5663;
 
   async function getWeather() {
-    const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=${units}&appid=${apiKey}`;
+    const url = `https://api.tomorrow.io/v4/weather/realtime?location=${lat},${lon}&apikey=${apiKey}`;
 
     try {
       const response = await fetch(url);
       const data = await response.json();
 
-      if (parseInt(data.cod) !== 200) {
-        document.getElementById("weather").innerHTML = "تعذر جلب حالة الطقس.";
-        return;
-      }
+      const temp = data.data.values.temperature;
+      const humidity = data.data.values.humidity;
+      const wind = data.data.values.windSpeed;
+      const condition = data.data.values.weatherCode;
 
-      const temp = data.main.temp;
-      const description = data.weather[0].description;
-      const icon = data.weather[0].icon;
-      const iconUrl = `https://openweathermap.org/img/wn/${icon}@2x.png`;
-
-      document.getElementById("weather").innerHTML = `
-        <div style="text-align: center;">
-          <h3>الطقس في ${city}</h3>
-          <img src="${iconUrl}" alt="Weather icon">
-          <p>${description}</p>
-          <p>درجة الحرارة: ${temp}°C</p>
-        </div>
+      const weatherHtml = `
+        <h3>الطقس في السويداء الآن</h3>
+        <p>درجة الحرارة: ${temp}°C</p>
+        <p>الرطوبة: ${humidity}%</p>
+        <p>الرياح: ${wind} كم/س</p>
+        <p>رمز الطقس: ${condition}</p>
       `;
+
+      document.getElementById("weather").innerHTML = weatherHtml;
     } catch (error) {
-      document.getElementById("weather").innerHTML = "حدث خطأ أثناء جلب البيانات.";
+      document.getElementById("weather").innerHTML = "تعذر جلب بيانات الطقس.";
     }
   }
 
