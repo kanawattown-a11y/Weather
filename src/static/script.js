@@ -9,7 +9,7 @@ let currentTimeIndex = 0;
 let currentMapStyle = 'osm';
 
 // إحداثيات محافظة السويداء
-const AL_SUWAYDA_COORDS = [32.709106, 36.341773];
+const AL_SUWAYDA_COORDS = [32.7044, 36.5662];
 
 // إعدادات طبقات الخريطة
 const MAP_STYLES = {
